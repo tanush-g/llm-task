@@ -91,42 +91,74 @@ async def analyze_text(request: MessageRequest):
 
     logger.info(f"Found entities: {[(ent['text'], ent['label']) for ent in entities]}")
     
-    # Send to simple Llama model
+    # Send to Llama model with simplified prompt
     try:
-        # Create sanitized version
+        # Create sanitized version with generic placeholders
         sanitized_text = text
-        for ent in entities:
-            placeholder = f"[{ent['label']}]"
-            sanitized_text = sanitized_text.replace(ent['text'], placeholder)
+        entity_map = {}
         
-        # Simple prompt for Llama 3.2
-        prompt = f"You are a cybersecurity expert powering a secure chat application. Your job is to paraphrase this sanitized text professionally while keeping the meaning, the context, and the user's intent intact: {sanitized_text}"
+        for ent in entities:
+            # Use simple, generic placeholders
+            if ent['label'] == 'PERSON':
+                placeholder = "[Name]"
+            elif ent['label'] == 'ORG':
+                placeholder = "[Company]"
+            elif ent['label'] == 'GPE':
+                placeholder = "[City]"
+            elif ent['label'] == 'DATE':
+                placeholder = "[Date]"
+            elif ent['label'] == 'MONEY':
+                placeholder = "[Amount]"
+            elif ent['label'] == 'CARDINAL':
+                # Check if it looks like a phone number
+                if len(ent['text'].replace(' ', '').replace('-', '').replace('(', '').replace(')', '')) >= 10:
+                    placeholder = "[Phone]"
+                else:
+                    placeholder = "[Number]"
+            else:
+                placeholder = f"[Info]"
+            
+            sanitized_text = sanitized_text.replace(ent['text'], placeholder)
+            entity_map[placeholder] = ent['text']
+        
+        # Much simpler prompt that's less likely to be refused
+        prompt = f"You are a privacy-conscious AI, you keep users safe by paraphrasing their texts to avoid giving out sensitive information. This helps users avoid fraud or misuse. Rewrite this sanitized text in a way that redacts any personally identifiable information: {sanitized_text}"
 
         ai_response = requests.post(
             "http://localhost:11434/api/generate",
             json={
-                "model": "llama3.2",  # Simpler model
+                "model": "llama3.2",
                 "prompt": prompt,
                 "stream": False,
                 "options": {
-                    "temperature": 0.3,
-                    "num_predict": 100  # Limit response length
+                    "temperature": 0.3,  # Lower temperature for more consistent results
+                    "num_predict": 100,  # Shorter responses
+                    "top_p": 0.8
                 }
             },
-            timeout=30
+            timeout=30  # Shorter timeout
         )
         
         if ai_response.status_code == 200:
-            ai_text = ai_response.json().get("response", "AI response unavailable")
+            ai_text = ai_response.json().get("response", "AI response unavailable").strip()
+            
+            # Simple cleanup - just remove quotes if present
+            if ai_text.startswith('"') and ai_text.endswith('"'):
+                ai_text = ai_text[1:-1]
+            
+            # Restore original entities in the AI response
+            for placeholder, original_text in entity_map.items():
+                ai_text = ai_text.replace(placeholder, original_text)
+            
             logger.info(f"LLM Response: {ai_text}")
         else:
             ai_text = f"AI service error (Status: {ai_response.status_code})"
             
     except requests.exceptions.ConnectionError:
-        ai_text = "AI service unavailable - please ensure Ollama is running"
+        ai_text = "AI service unavailable - please ensure Ollama is running with 'ollama serve'"
         logger.error("Failed to connect to Ollama API")
     except requests.exceptions.Timeout:
-        ai_text = "AI service timeout"
+        ai_text = "AI service timeout - the model is taking too long to respond"
         logger.error("Ollama API request timed out")
     except Exception as e:
         ai_text = f"AI service error: {str(e)}"

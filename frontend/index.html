@@ -27,8 +27,8 @@
     .window {
       display: flex;
       flex-direction: column;
-      width: 1000px;  /* Slightly wider for input field */
-      height: 650px;   /* Slightly taller */
+      width: 900px;
+      height: 600px;
       background: rgba(18, 18, 18, 0.96);
       border-radius: 12px;
       overflow: hidden;
@@ -40,7 +40,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      height: 50px;
+      height: 52px;
       background: rgba(30, 30, 30, 0.8);
       backdrop-filter: blur(10px);
       padding: 0 20px;
@@ -154,7 +154,7 @@
     }
 
     /* --------------------
-       CHAT WINDOW (TOP RIGHT)
+       CHAT WINDOW (TOP RIGHT) - EXPANDED
        -------------------- */
     .chat-container {
       flex: 1;
@@ -168,19 +168,47 @@
       border: 1px solid #242424;
       border-radius: 16px;
       padding: 24px;
-      height: 320px;  /* Increased height to accommodate bottom section */
-      display: flex;
-      flex-direction: column;
+      /* Dynamic height - expands to fit content */
+      min-height: 200px;
+      max-height: 320px;
       position: relative;
       backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
     }
 
-    /* Input section at the top */
+    /* Main content area */
+    .main-content {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      position: relative;
+      min-height: 80px;
+    }
+
+    /* Input section - replaces the demo content */
     .input-section {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+      width: 100%;
+      text-align: center;
+    }
+
+    .input-section.active {
+      display: flex;
+    }
+
+    .input-row {
       display: flex;
       gap: 12px;
-      margin-bottom: 16px;
       align-items: center;
+      width: 100%;
+      max-width: 400px;
     }
 
     #userInput {
@@ -216,22 +244,30 @@
       transform: translateY(-1px);
     }
 
-    /* Results section */
-    .results-section {
-      flex: 1;
+    .input-prompt {
+      font-size: 16px;
+      color: #A0A0A0;
+      margin-bottom: 8px;
+    }
+
+    /* Demo content - shown by default */
+    .demo-content {
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      overflow-y: auto;
-      margin-bottom: 16px; /* Space for bottom section */
+      align-items: center;
+      text-align: center;
+      justify-content: center;
+    }
+
+    .demo-content.hidden {
+      display: none;
     }
 
     .chat-prompt {
-      font-size: 16px;
+      font-size: 18px;
       color: #E0E0E0;
       margin-bottom: 8px;
       font-weight: 500;
-      display: none; /* Initially hidden */
     }
     
     .chat-example {
@@ -239,74 +275,91 @@
       color: #A0A0A0;
       font-weight: 400;
       line-height: 1.4;
-      margin-bottom: 8px;
-      text-align: center;
-      display: none; /* Initially hidden */
+      margin-bottom: 16px;
+      max-width: 100%;
+      word-wrap: break-word;
     }
 
+    /* LLM Response - improved layout */
     .llm-response {
       background: rgba(0, 255, 102, 0.05);
       border: 1px solid rgba(0, 255, 102, 0.2);
       border-radius: 8px;
-      padding: 12px;
-      font-size: 13px;
+      padding: 16px;
+      font-size: 12px;
       line-height: 1.4;
       color: #00ff66;
       display: none;
-      max-height: 80px; /* Reduced to make room */
-      overflow-y: auto;
+      margin-top: 12px;
+      /* Remove max-height constraint for better readability */
+      max-height: none;
+      overflow-y: visible;
     }
 
     .llm-response-title {
       font-weight: 600;
-      margin-bottom: 6px;
-      font-size: 12px;
+      margin-bottom: 8px;
+      font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
 
-    .initial-message {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #666;
-      font-size: 14px;
-      font-style: italic;
-      text-align: center;
+    #llmResponseText {
+      white-space: pre-wrap;
+      word-wrap: break-word;
     }
 
-    /* Bottom section - no longer absolute positioned */
-    .bottom-section {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: auto; /* Push to bottom */
-      padding-top: 12px;
+    .initial-message {
+      font-size: 16px;
+      color: #666;
+      font-style: italic;
+      text-align: center;
     }
     
     .pii-highlight-orange {
       background: rgba(255, 165, 0, 0.3);
       color: #FFA500;
-      padding: 3px 6px;
-      border-radius: 4px;
+      padding: 4px 8px;
+      border-radius: 6px;
       border: 1px solid rgba(255, 165, 0, 0.5);
-      box-shadow: 0 0 8px rgba(255, 165, 0, 0.3);
+      box-shadow: 0 0 12px rgba(255, 165, 0, 0.4);
+      animation: piiPulseOrange 2s ease-in-out infinite;
       font-weight: 600;
     }
     
     .pii-highlight-blue {
       background: rgba(0, 191, 255, 0.3);
       color: #00BFFF;
-      padding: 3px 6px;
-      border-radius: 4px;
+      padding: 4px 8px;
+      border-radius: 6px;
       border: 1px solid rgba(0, 191, 255, 0.5);
-      box-shadow: 0 0 8px rgba(0, 191, 255, 0.3);
+      box-shadow: 0 0 12px rgba(0, 191, 255, 0.4);
+      animation: piiPulseBlue 2s ease-in-out infinite;
       font-weight: 600;
     }
     
+    @keyframes piiPulseOrange {
+      0%, 100% { box-shadow: 0 0 12px rgba(255, 165, 0, 0.4); }
+      50% { box-shadow: 0 0 20px rgba(255, 165, 0, 0.8); }
+    }
+    
+    @keyframes piiPulseBlue {
+      0%, 100% { box-shadow: 0 0 12px rgba(0, 191, 255, 0.4); }
+      50% { box-shadow: 0 0 20px rgba(0, 191, 255, 0.8); }
+    }
+
+    /* Bottom controls - positioned at bottom */
+    .bottom-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      padding-top: 8px;
+      flex-shrink: 0;
+    }
+    
     .pii-status {
-      display: none;
+      display: flex;
       align-items: center;
       gap: 8px;
       background: rgba(0, 255, 102, 0.1);
@@ -358,9 +411,65 @@
       color: #00FF66;
       font-size: 16px;
     }
+
+    /* Add input button - positioned in top right corner */
+    .add-input-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 32px;
+      height: 32px;
+      background: rgba(0, 255, 102, 0.1);
+      border: 1px solid rgba(0, 255, 102, 0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #00FF66;
+      font-size: 18px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      z-index: 10;
+    }
+
+    .add-input-btn:hover {
+      background: rgba(0, 255, 102, 0.2);
+      border-color: rgba(0, 255, 102, 0.5);
+      transform: scale(1.1);
+    }
+
+    /* Clear/close button when in input mode */
+    .clear-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 32px;
+      height: 32px;
+      background: rgba(255, 0, 0, 0.1);
+      border: 1px solid rgba(255, 0, 0, 0.3);
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      color: #ff6666;
+      font-size: 18px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      z-index: 10;
+    }
+
+    .clear-btn:hover {
+      background: rgba(255, 0, 0, 0.2);
+      border-color: rgba(255, 0, 0, 0.5);
+      transform: scale(1.1);
+    }
+
+    .clear-btn.active {
+      display: flex;
+    }
     
     /* --------------------
-       EMPTY SPACE / PII DETAILS
+       EMPTY SPACE / PII DETAILS - ADJUSTED
        -------------------- */
     .empty-space {
       flex: 1;
@@ -373,6 +482,8 @@
       color: #666;
       font-size: 14px;
       font-style: italic;
+      /* Reduced height to accommodate larger chat window */
+      min-height: 180px;
     }
     
     .pii-details {
@@ -386,6 +497,7 @@
       gap: 16px;
       animation: slideInUp 0.3s ease forwards;
       overflow-y: auto;
+      min-height: 180px;
     }
     
     .pii-details.active {
@@ -588,7 +700,7 @@
         <div class="hamburger-line"></div>
         <div class="hamburger-line"></div>
       </div>
-      <div class="title">PrivChat - PII Detection</div>
+      <div class="title">PrivChat</div>
       <svg class="settings-icon" viewBox="0 0 24 24">
         <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L19 6.5C18.5 4.9 17.5 3.5 16.1 2.4L17 1L15.6 0L14.1 1.5C12.9 1 11.4 1 10.1 1.5L8.6 0L7.2 1L8.1 2.4C6.7 3.5 5.7 4.9 5.2 6.5L3 7V9L5.2 9.5C5.7 11.1 6.7 12.5 8.1 13.6L7.2 15L8.6 16L10.1 14.5C11.3 15 12.8 15 14.1 14.5L15.6 16L17 15L16.1 13.6C17.5 12.5 18.5 11.1 19 9.5L21 9ZM12 8C14.2 8 16 9.8 16 12S14.2 16 12 16S8 14.2 8 12S9.8 8 12 8Z"/>
       </svg>
@@ -610,29 +722,40 @@
       <div class="chat-container">
         <!-- Chat Window (Top Right) -->
         <div class="chat-window">
-          <!-- Input section -->
-          <div class="input-section">
-            <input type="text" id="userInput" placeholder="Enter your message (e.g., Hi, I'm John Doe from New York)" />
-            <button class="send-btn" onclick="sendMessage()">Send</button>
+          <!-- Add input button -->
+          <div class="add-input-btn" id="addInputBtn" onclick="toggleInput()">+</div>
+          
+          <!-- Clear button (shown when in input mode) -->
+          <div class="clear-btn" id="clearBtn" onclick="clearInput()">×</div>
+
+          <!-- Main content area -->
+          <div class="main-content">
+            <!-- Demo content - shown by default -->
+            <div class="demo-content" id="demoContent">
+              <div class="chat-prompt">Paraphrase this:</div>
+              <div class="chat-example" id="chatExample">
+                <span class="pii-highlight-orange">John Doe</span> lives in <span class="pii-highlight-blue">Dublin, CA</span>.
+              </div>
+            </div>
+
+            <!-- Input section - hidden by default -->
+            <div class="input-section" id="inputSection">
+              <div class="input-prompt">Enter text to analyze for PII:</div>
+              <div class="input-row">
+                <input type="text" id="userInput" placeholder="Hi, I'm John Doe from New York. Call me at 555-123-4567" />
+                <button class="send-btn" onclick="sendMessage()">Send</button>
+              </div>
+            </div>
           </div>
 
-          <!-- Results section -->
-          <div class="results-section">
-            <div class="initial-message" id="initialMessage">
-              Enter text above to analyze for PII
-            </div>
-            
-            <div class="chat-prompt" id="chatPrompt">Input Text:</div>
-            <div class="chat-example" id="chatExample"></div>
-            
-            <div class="llm-response" id="llmResponse">
-              <div class="llm-response-title">LLM Response:</div>
-              <div id="llmResponseText"></div>
-            </div>
+          <!-- LLM Response (positioned below main content) -->
+          <div class="llm-response" id="llmResponse">
+            <div class="llm-response-title">LLM Response:</div>
+            <div id="llmResponseText"></div>
           </div>
 
-          <!-- Bottom section - moved from absolute positioning -->
-          <div class="bottom-section">
+          <!-- Bottom controls -->
+          <div class="bottom-controls">
             <div class="pii-status" id="piiStatus">
               PII Detected
               <div class="pii-info-btn" onclick="togglePiiDetails()">i</div>
@@ -643,7 +766,7 @@
         
         <!-- Empty Space / PII Details Panel -->
         <div class="empty-space" id="emptySpace">
-          Click "Send" to analyze text for PII
+          Additional content area
         </div>
         
         <div class="pii-details" id="piiDetails">
@@ -652,11 +775,27 @@
               <div class="pii-details-title">Detected PII</div>
             </div>
             <div style="display: flex; align-items: center; gap: 12px;">
-              <div class="pii-count" id="piiCount">0 items</div>
+              <div class="pii-count" id="piiCount">2 items</div>
               <div class="close-btn" onclick="togglePiiDetails()">×</div>
             </div>
           </div>
-          <div id="piiItemsList"></div>
+          <div id="piiItemsList">
+            <div class="pii-item orange">
+              <div class="pii-info">
+                <div class="pii-type orange">PERSON</div>
+                <div class="pii-value">John Doe</div>
+              </div>
+              <div class="pii-confidence orange">95%</div>
+            </div>
+            
+            <div class="pii-item blue">
+              <div class="pii-info">
+                <div class="pii-type blue">GPE</div>
+                <div class="pii-value">Dublin, CA</div>
+              </div>
+              <div class="pii-confidence blue">88%</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -665,6 +804,105 @@
   <script>
     let isPiiDetailsVisible = false;
     let currentChatSpace = 1;
+    let isInputMode = false;
+    
+    function toggleInput() {
+      const inputSection = document.getElementById('inputSection');
+      const demoContent = document.getElementById('demoContent');
+      const addInputBtn = document.getElementById('addInputBtn');
+      const clearBtn = document.getElementById('clearBtn');
+      
+      isInputMode = true;
+      
+      // Show input mode
+      inputSection.classList.add('active');
+      demoContent.classList.add('hidden');
+      addInputBtn.style.display = 'none';
+      clearBtn.classList.add('active');
+      
+      // Focus on input
+      document.getElementById('userInput').focus();
+      
+      // Hide any existing results
+      document.getElementById('llmResponse').style.display = 'none';
+      document.getElementById('piiStatus').style.display = 'none';
+    }
+    
+    function clearInput() {
+      const inputSection = document.getElementById('inputSection');
+      const demoContent = document.getElementById('demoContent');
+      const addInputBtn = document.getElementById('addInputBtn');
+      const clearBtn = document.getElementById('clearBtn');
+      
+      isInputMode = false;
+      
+      // Show demo mode
+      inputSection.classList.remove('active');
+      demoContent.classList.remove('hidden');
+      addInputBtn.style.display = 'flex';
+      clearBtn.classList.remove('active');
+      
+      // Clear input and results
+      document.getElementById('userInput').value = '';
+      document.getElementById('llmResponse').style.display = 'none';
+      document.getElementById('piiStatus').style.display = 'flex';
+      
+      // Reset demo content
+      resetDemoContent();
+      
+      // Hide PII details if visible
+      if (isPiiDetailsVisible) {
+        togglePiiDetails();
+      }
+    }
+    
+    function resetDemoContent() {
+      const chatExample = document.getElementById('chatExample');
+      const piiCount = document.getElementById('piiCount');
+      const piiItemsList = document.getElementById('piiItemsList');
+      
+      if (currentChatSpace === 1) {
+        chatExample.innerHTML = '<span class="pii-highlight-orange">John Doe</span> lives in <span class="pii-highlight-blue">Dublin, CA</span>.';
+        piiCount.textContent = '2 items';
+        piiItemsList.innerHTML = `
+          <div class="pii-item orange">
+            <div class="pii-info">
+              <div class="pii-type orange">PERSON</div>
+              <div class="pii-value">John Doe</div>
+            </div>
+            <div class="pii-confidence orange">95%</div>
+          </div>
+          
+          <div class="pii-item blue">
+            <div class="pii-info">
+              <div class="pii-type blue">GPE</div>
+              <div class="pii-value">Dublin, CA</div>
+            </div>
+            <div class="pii-confidence blue">88%</div>
+          </div>
+        `;
+      } else if (currentChatSpace === 2) {
+        chatExample.innerHTML = 'Contact <span class="pii-highlight-orange">sarah.johnson@email.com</span> at <span class="pii-highlight-blue">(555) 123-4567</span>';
+        piiCount.textContent = '2 items';
+        piiItemsList.innerHTML = `
+          <div class="pii-item orange">
+            <div class="pii-info">
+              <div class="pii-type orange">EMAIL</div>
+              <div class="pii-value">sarah.johnson@email.com</div>
+            </div>
+            <div class="pii-confidence orange">97%</div>
+          </div>
+          
+          <div class="pii-item blue">
+            <div class="pii-info">
+              <div class="pii-type blue">PHONE</div>
+              <div class="pii-value">(555) 123-4567</div>
+            </div>
+            <div class="pii-confidence blue">92%</div>
+          </div>
+        `;
+      }
+    }
     
     function togglePiiDetails() {
       const emptySpace = document.getElementById('emptySpace');
@@ -691,8 +929,10 @@
       
       currentChatSpace = spaceNumber;
       
-      // Clear current results
-      clearResults();
+      // If not in input mode, update demo content
+      if (!isInputMode) {
+        resetDemoContent();
+      }
       
       console.log(`Switched to Chat Space ${spaceNumber}`);
       
@@ -707,21 +947,6 @@
       }, 150);
     }
 
-    function clearResults() {
-      // Reset all UI elements
-      document.getElementById('initialMessage').style.display = 'flex';
-      document.getElementById('chatPrompt').style.display = 'none';
-      document.getElementById('chatExample').style.display = 'none';
-      document.getElementById('llmResponse').style.display = 'none';
-      document.getElementById('piiStatus').style.display = 'none';
-      document.getElementById('userInput').value = '';
-      
-      // Hide PII details if visible
-      if (isPiiDetailsVisible) {
-        togglePiiDetails();
-      }
-    }
-
     async function sendMessage() {
       const input = document.getElementById("userInput");
       const text = input.value.trim();
@@ -732,13 +957,23 @@
       }
 
       // Show loading states
-      document.getElementById('initialMessage').style.display = 'none';
-      document.getElementById('chatPrompt').style.display = 'block';
-      document.getElementById('chatExample').style.display = 'block';
-      document.getElementById('llmResponse').style.display = 'block';
+      const chatExample = document.getElementById("chatExample");
+      const llmResponse = document.getElementById("llmResponse");
+      const llmResponseText = document.getElementById("llmResponseText");
       
-      document.getElementById("chatExample").innerHTML = "Analyzing...";
-      document.getElementById("llmResponseText").innerHTML = "Generating response...";
+      // Switch to showing the input text with highlighting
+      const demoContent = document.getElementById('demoContent');
+      const inputSection = document.getElementById('inputSection');
+      
+      // Show demo content area with the user's input
+      demoContent.classList.remove('hidden');
+      inputSection.classList.remove('active');
+      
+      // Update the chat prompt and show analyzing state
+      document.querySelector('.chat-prompt').textContent = 'Analyzing:';
+      chatExample.innerHTML = "Analyzing...";
+      llmResponse.style.display = "block";
+      llmResponseText.innerHTML = "Generating response...";
 
       try {
         const response = await fetch("http://localhost:8000/analyze", {
@@ -758,8 +993,8 @@
         
       } catch (error) {
         console.error("Error:", error);
-        document.getElementById("chatExample").innerHTML = `❌ Error: ${error.message}`;
-        document.getElementById("llmResponseText").innerHTML = "❌ Unable to get LLM response";
+        chatExample.innerHTML = `❌ Error: ${error.message}`;
+        llmResponseText.innerHTML = "❌ Unable to get LLM response";
       }
     }
 
@@ -776,7 +1011,10 @@
       console.log("=== LLM RESPONSE ===");
       console.log(data.ai_response);
 
-      // Show highlighted text
+      // Update the chat prompt
+      document.querySelector('.chat-prompt').textContent = 'Input Text:';
+
+      // Show highlighted text with pulsing animations
       let processedText = data.original_text;
       const colors = ["orange", "blue"];
 
