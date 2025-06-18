@@ -96,6 +96,7 @@
       display: flex;
       padding: 20px;
       gap: 20px;
+      overflow: hidden; /* Prevent overflow on main content */
     }
     
     /* --------------------
@@ -161,6 +162,7 @@
       display: flex;
       flex-direction: column;
       gap: 20px;
+      overflow: hidden; /* Prevent overflow */
     }
     
     .chat-window {
@@ -469,7 +471,7 @@
     }
     
     /* --------------------
-       EMPTY SPACE / PII DETAILS - ADJUSTED
+       EMPTY SPACE / PII DETAILS - FIXED SCROLLING
        -------------------- */
     .empty-space {
       flex: 1;
@@ -482,8 +484,8 @@
       color: #666;
       font-size: 14px;
       font-style: italic;
-      /* Reduced height to accommodate larger chat window */
-      min-height: 180px;
+      /* Use available space */
+      min-height: 0; /* Allow flex to shrink */
     }
     
     .pii-details {
@@ -491,35 +493,27 @@
       background: rgba(240, 240, 240, 0.02);
       border: 1px solid #1a1a1a;
       border-radius: 16px;
-      padding: 24px;
       display: none;
       flex-direction: column;
-      gap: 16px;
       animation: slideInUp 0.3s ease forwards;
-      overflow-y: auto;
-      min-height: 180px;
+      /* CRITICAL: Use flex and min-height to ensure proper sizing */
+      min-height: 0; /* Allow flex to work properly */
+      overflow: hidden; /* Hide overflow on main container */
     }
     
     .pii-details.active {
       display: flex;
     }
     
-    @keyframes slideInUp {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-    
+    /* Fixed header that doesn't scroll */
     .pii-details-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 8px;
+      padding: 20px 24px 16px 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      flex-shrink: 0; /* Don't shrink the header */
+      background: rgba(240, 240, 240, 0.02); /* Match parent background */
     }
     
     .pii-details-title {
@@ -559,6 +553,57 @@
       color: #E0E0E0;
     }
     
+    /* Scrollable content area - THIS IS THE KEY FIX */
+    #piiItemsList {
+      flex: 1; /* Take all remaining space */
+      overflow-y: auto; /* Enable scrolling */
+      overflow-x: hidden; /* Prevent horizontal scroll */
+      padding: 8px 24px 24px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      /* CRITICAL: Set a minimum height to force scrolling when needed */
+      min-height: 0;
+    }
+    
+    /* Enhanced scrollbar styling */
+    #piiItemsList::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    #piiItemsList::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+      margin: 4px 0;
+    }
+    
+    #piiItemsList::-webkit-scrollbar-thumb {
+      background: rgba(0, 255, 102, 0.4);
+      border-radius: 4px;
+      transition: background 0.2s ease;
+    }
+    
+    #piiItemsList::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 255, 102, 0.6);
+    }
+    
+    /* For Firefox */
+    #piiItemsList {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 255, 102, 0.4) rgba(255, 255, 255, 0.05);
+    }
+    
+    @keyframes slideInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
     .pii-item {
       background: rgba(240, 240, 240, 0.05);
       border: 1px solid #242424;
@@ -568,6 +613,8 @@
       justify-content: space-between;
       align-items: center;
       transition: all 0.3s ease;
+      flex-shrink: 0; /* Don't shrink items */
+      min-height: 60px; /* Ensure consistent item height */
     }
     
     .pii-item.orange {
@@ -679,9 +726,12 @@
       animation: slideInLeft 0.5s ease forwards;
     }
     
-    .pii-item:nth-child(2) { animation-delay: 0.1s; }
-    .pii-item:nth-child(3) { animation-delay: 0.2s; }
-    .pii-item:nth-child(4) { animation-delay: 0.3s; }
+    .pii-item:nth-child(1) { animation-delay: 0.1s; }
+    .pii-item:nth-child(2) { animation-delay: 0.2s; }
+    .pii-item:nth-child(3) { animation-delay: 0.3s; }
+    .pii-item:nth-child(4) { animation-delay: 0.4s; }
+    .pii-item:nth-child(5) { animation-delay: 0.5s; }
+    .pii-item:nth-child(6) { animation-delay: 0.6s; }
     
     @keyframes slideInLeft {
       to {
