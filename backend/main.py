@@ -2,8 +2,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import spacy
-import requests
 import logging
+import google.generativeai as genai
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Initialize FastAPI app
 app = FastAPI(title="PII Detection API", version="1.0.0")
@@ -11,6 +16,16 @@ app = FastAPI(title="PII Detection API", version="1.0.0")
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Configure Gemini API
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    logger.error("GEMINI_API_KEY not found in environment variables")
+    raise HTTPException(status_code=500, detail="Gemini API key not configured")
+
+genai.configure(api_key=GEMINI_API_KEY)
+# Using Gemini 2.0 Flash - newer stable model (January 2025)
+gemini_model = genai.GenerativeModel('gemini-2.0-flash')
 
 # Allow CORS for all origins
 app.add_middleware(
@@ -29,6 +44,10 @@ except OSError:
     logger.error("spaCy model not found. Please install it with: python -m spacy download en_core_web_sm")
     raise HTTPException(status_code=500, detail="spaCy model not available")
 
+# Finish reason constants for Gemini API
+FINISH_REASON_SAFETY = 2
+FINISH_REASON_RECITATION = 3
+
 # Define the data model for the request  
 class MessageRequest(BaseModel):
     text: str
@@ -41,14 +60,14 @@ def get_entity_confidence(ent, doc):
     type_confidence = {
         "PERSON": 0.9,
         "ORG": 0.85, 
-        "GPE": 0.88,  # Geopolitical entities (locations)
+        "GPE": 0.88,
         "DATE": 0.82,
         "MONEY": 0.90,
-        "CARDINAL": 0.70,  # Numbers
+        "CARDINAL": 0.70,
         "PERCENT": 0.85,
         "TIME": 0.80,
-        "PHONE": 0.95,  # Custom for phone numbers
-        "EMAIL": 0.95   # Custom for emails
+        "PHONE": 0.95,
+        "EMAIL": 0.95
     }
     
     # Length-based confidence boost
@@ -69,115 +88,148 @@ def get_entity_confidence(ent, doc):
 @app.post("/analyze")
 async def analyze_text(request: MessageRequest):
     text = request.text
+    logger.info(f"Analyzing text: {text[:100]}...")
     
-    if not text.strip():
-        raise HTTPException(status_code=400, detail="Text cannot be empty")
-    
-    # Find personal information using spaCy
+    # Process text with spaCy
     doc = nlp(text)
+    
+    # Extract entities with confidence scores
     entities = []
+    entity_map = {}
+    sanitized_text = text
     
     for ent in doc.ents:
-        # Filter for PII-relevant entity types
-        if ent.label_ in ["PERSON", "ORG", "GPE", "DATE", "MONEY", "CARDINAL", "PHONE_NUMBER"]:
-            confidence = get_entity_confidence(ent, doc)
+        confidence = get_entity_confidence(ent, doc)
+        
+        # Only include entities with confidence > 60%
+        if confidence > 0.6:
             entities.append({
                 "text": ent.text,
                 "label": ent.label_,
-                "confidence": round(confidence, 2),
                 "start": ent.start_char,
-                "end": ent.end_char
+                "end": ent.end_char,
+                "confidence": round(confidence, 2)
             })
-
-    logger.info(f"Found entities: {[(ent['text'], ent['label']) for ent in entities]}")
-    
-    # Send to Llama model with simplified prompt
-    try:
-        # Create sanitized version with generic placeholders
-        sanitized_text = text
-        entity_map = {}
-        
-        for ent in entities:
-            # Use simple, generic placeholders
-            if ent['label'] == 'PERSON':
-                placeholder = "[Name]"
-            elif ent['label'] == 'ORG':
-                placeholder = "[Company]"
-            elif ent['label'] == 'GPE':
-                placeholder = "[City]"
-            elif ent['label'] == 'DATE':
-                placeholder = "[Date]"
-            elif ent['label'] == 'MONEY':
-                placeholder = "[Amount]"
-            elif ent['label'] == 'CARDINAL':
-                # Check if it looks like a phone number
-                if len(ent['text'].replace(' ', '').replace('-', '').replace('(', '').replace(')', '')) >= 10:
-                    placeholder = "[Phone]"
-                else:
-                    placeholder = "[Number]"
-            else:
-                placeholder = f"[Info]"
             
-            sanitized_text = sanitized_text.replace(ent['text'], placeholder)
-            entity_map[placeholder] = ent['text']
-        
-        # Much simpler prompt that's less likely to be refused
-        prompt = f"You are a privacy-conscious AI, you keep users safe by paraphrasing their texts to avoid giving out sensitive information. This helps users avoid fraud or misuse. Rewrite this sanitized text in a way that redacts any personally identifiable information: {sanitized_text}"
+            # Create placeholder for sanitization
+            placeholder = f"[{ent.label_.title()}]" if ent.label_ != "PERSON" else "[Name]"
+            if ent.label_ == "ORG":
+                placeholder = "[Company]"
+            elif ent.label_ == "GPE":
+                placeholder = "[Location]"
+            elif ent.label_ in ["PHONE", "CARDINAL"]:
+                placeholder = "[Phone]" if "phone" in ent.text.lower() or len(ent.text.replace("-", "").replace(" ", "")) > 7 else "[Number]"
+            
+            # Replace in sanitized text
+            sanitized_text = sanitized_text.replace(ent.text, placeholder)
+            entity_map[placeholder] = ent.text
+    
+    logger.info(f"Found {len(entities)} entities")
+    logger.info(f"Sanitized text: {sanitized_text}")
+    
+    # Generate AI response using Gemini
+    prompt = f"""
+    Please rewrite the following text to be more privacy-friendly by removing or generalizing any personal information, while maintaining the overall meaning and tone. The text may contain placeholders like [Name], [Company], [Location], etc. where personal information was detected.
 
-        ai_response = requests.post(
-            "http://localhost:11434/api/generate",
-            json={
-                "model": "llama3.2",
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "temperature": 0.3,  # Lower temperature for more consistent results
-                    "num_predict": 100,  # Shorter responses
-                    "top_p": 0.8
-                }
+    Original text: {sanitized_text}
+
+    Please provide a rewritten version that:
+    1. Maintains the original intent and tone
+    2. Removes or generalizes personal information
+    3. Sounds natural and professional
+    4. Is concise (under 100 words)
+
+    Rewritten text:
+    """
+    
+    try:
+        # Generate response using Gemini with safety settings
+        safety_settings = [
+            {
+                "category": "HARM_CATEGORY_HARASSMENT",
+                "threshold": "BLOCK_NONE"
             },
-            timeout=30  # Shorter timeout
+            {
+                "category": "HARM_CATEGORY_HATE_SPEECH", 
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                "threshold": "BLOCK_NONE"
+            }
+        ]
+        
+        response = gemini_model.generate_content(
+            prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.3,
+                max_output_tokens=100,
+                top_p=0.8
+            ),
+            safety_settings=safety_settings
         )
         
-        if ai_response.status_code == 200:
-            ai_text = ai_response.json().get("response", "AI response unavailable").strip()
+        # Check if response was blocked
+        if response.candidates and response.candidates[0].finish_reason == FINISH_REASON_SAFETY:
+            ai_text = "Response was blocked by safety filters. Please try rephrasing your text."
+            logger.warning("Gemini response blocked by safety filter")
+        elif response.candidates and response.candidates[0].finish_reason == FINISH_REASON_RECITATION:
+            ai_text = "Response was blocked due to recitation. Please try with different text."
+            logger.warning("Gemini response blocked due to recitation")
+        elif response.text:
+            ai_text = response.text.strip()
             
-            # Simple cleanup - just remove quotes if present
+            # Simple cleanup - remove quotes if present
             if ai_text.startswith('"') and ai_text.endswith('"'):
                 ai_text = ai_text[1:-1]
             
-            # Restore original entities in the AI response
-            for placeholder, original_text in entity_map.items():
-                ai_text = ai_text.replace(placeholder, original_text)
-            
-            logger.info(f"LLM Response: {ai_text}")
+            logger.info(f"Gemini Response: {ai_text}")
         else:
-            ai_text = f"AI service error (Status: {ai_response.status_code})"
+            ai_text = "No response generated. Please try again."
+            logger.warning("Empty response from Gemini")
             
-    except requests.exceptions.ConnectionError:
-        ai_text = "AI service unavailable - please ensure Ollama is running with 'ollama serve'"
-        logger.error("Failed to connect to Ollama API")
-    except requests.exceptions.Timeout:
-        ai_text = "AI service timeout - the model is taking too long to respond"
-        logger.error("Ollama API request timed out")
     except Exception as e:
-        ai_text = f"AI service error: {str(e)}"
-        logger.error(f"Unexpected error: {e}")
-
+        if "API_KEY" in str(e):
+            ai_text = "Gemini API key not configured or invalid"
+        elif "quota" in str(e).lower():
+            ai_text = "Gemini API quota exceeded"
+        else:
+            ai_text = f"Gemini API error: {str(e)}"
+        logger.error(f"Gemini API error: {e}")
+    
     return {
         "entities": entities,
         "ai_response": ai_text,
         "original_text": text,
-        "sanitized_text": sanitized_text if entities else text
+        "sanitized_text": sanitized_text
     }
 
 @app.get("/health")
 async def health_check():
-    return {
-        "status": "healthy",
-        "spacy_loaded": nlp is not None
-    }
+    try:
+        # Test spaCy
+        spacy_status = nlp is not None
+        
+        # Test Gemini API key
+        gemini_status = GEMINI_API_KEY is not None
+        
+        return {
+            "status": "healthy",
+            "spacy_loaded": spacy_status,
+            "gemini_configured": gemini_status,
+            "model": "gemini-2.0-flash"
+        }
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return {
+            "status": "unhealthy",
+            "error": str(e)
+        }
     
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="localhost", port=8000, reload=True)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -3,3 +3,5 @@ uvicorn
 spacy
 requests
 pydantic
+google-generativeai
+python-dotenv
