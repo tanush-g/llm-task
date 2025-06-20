@@ -229,6 +229,18 @@ async def health_check():
             "status": "unhealthy",
             "error": str(e)
         }
+
+@app.get("/")
+async def root():
+    return {
+        "message": "PrivChat PII Detection API", 
+        "status": "running",
+        "endpoints": {
+            "health": "/health",
+            "analyze": "/analyze",
+            "docs": "/docs"
+        }
+    }
     
 if __name__ == "__main__":
     import uvicorn
