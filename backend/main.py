@@ -27,12 +27,17 @@ genai.configure(api_key=GEMINI_API_KEY)
 # Using Gemini 2.0 Flash - newer stable model (January 2025)
 gemini_model = genai.GenerativeModel('gemini-2.0-flash')
 
-# Allow CORS for all origins
+# Configure CORS for production and development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://llm-task-phi.vercel.app",  # Production frontend
+        "http://localhost:3000",            # Local development
+        "http://localhost:8080",            # Alternative local port
+        "http://127.0.0.1:3000",           # Local development (alternative)
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
