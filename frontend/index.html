@@ -1026,7 +1026,7 @@
       llmResponseText.innerHTML = "Generating response...";
 
       try {
-        const response = await fetch("http://localhost:8000/analyze", {
+        const response = await fetch("https://llm-task.onrender.com/analyze", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
